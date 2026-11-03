@@ -31,12 +31,14 @@ input:disabled,input[readonly]{background:#eef3f0;color:var(--mut)}
 .sel>div{flex:1 1 0;min-width:0}
 .qc{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .qc input{padding:9px 3px;font-size:15px;text-align:center}
-.wlist{display:flex;flex-direction:column;gap:5px;margin-top:4px}
-.wrow{display:flex;align-items:center;gap:8px}
-.wrow span{flex:0 0 30px;text-align:center;font-size:12.5px;font-weight:700;color:var(--mut);background:#eef3f0;border-radius:7px;padding:7px 0}
-.wrow input{padding:9px 8px;font-size:16px;text-align:center}
-.wrow input.bad{border-color:var(--warn);background:#fdeaea}
-.wrow input.fixed{border-color:var(--acc2);background:#e9f7f0}
+.wlist{display:grid;gap:5px;margin-top:5px;direction:ltr;padding:2px 1px 2px}
+.wcell{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0}
+.wcell>span{text-align:center;font-size:11px;font-weight:700;color:var(--mut);background:#eef3f0;border-radius:6px;padding:3px 0;line-height:1.2}
+.wcell input{padding:10px 2px;font-size:16px;text-align:center;width:100%;min-width:0;letter-spacing:-.4px}
+.wcell input.bad{border-color:var(--warn);background:#fdeaea}
+.wcell input.fixed{border-color:var(--acc2);background:#e9f7f0}
+.wlist::-webkit-scrollbar{height:5px}
+.wlist::-webkit-scrollbar-thumb{background:#c9d6d0;border-radius:5px}
 .avg{display:flex;align-items:center;gap:8px;margin-top:9px}
 .avg label{margin:0;flex:0 0 auto;font-size:12.5px}
 .avg input{text-align:center;font-weight:700;background:#eef3f0}
@@ -97,7 +99,7 @@ th{background:#eef3f0}
 /* ---------------- إعدادات ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v6';
+const VER='v7';
 const LINES=[
   {ln:1,name:'Savannah',count:8},
   {ln:2,name:'Savannah (771)',count:10},
@@ -164,7 +166,7 @@ function build(){
       +'<input class="ffa" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="FFA">'
       +'</div>'
       +'<label>الأوزان</label>'
-      +'<div class="wlist">'+[...Array(n)].map((_,i)=>'<div class="wrow"><span>'+(i+1)+'</span><input class="w" data-ln="'+L.ln+'" data-i="'+i+'" type="text" inputmode="decimal" placeholder="—"></div>').join('')+'</div>'
+      +'<div class="wlist" style="grid-template-columns:repeat('+(n<=6?n:Math.ceil(n/2))+',minmax(0,1fr))">'+[...Array(n)].map((_,i)=>'<div class="wcell"><span>'+(i+1)+'</span><input class="w" data-ln="'+L.ln+'" data-i="'+i+'" type="text" inputmode="decimal" placeholder="—"></div>').join('')+'</div>'
       +'<div class="avg"><label>المتوسط (Avgr)</label><input class="avgv" data-ln="'+L.ln+'" readonly></div>'
       +'<div class="msg wn wl" data-ln="'+L.ln+'"></div>'
       +'</div>';

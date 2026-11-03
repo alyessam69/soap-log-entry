@@ -1,5 +1,5 @@
 /* تسجيل أوزان سريع - offline cache */
-const CACHE = 'entry-v1';
+const CACHE = 'entry-v4';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(ASSETS.map(u => c.add(new Request(u, { cache: 'reload' })))))
