@@ -96,7 +96,7 @@ th{background:#eef3f0}
       <input type="checkbox" id="snd" style="width:auto;flex:0 0 auto">
       <span style="margin:0">🔔 Sound on save</span>
     </label>
-    <button class="sec" id="clear" type="button">🗑 Clear all weights &amp; analyses</button>
+    <button class="sec" id="clear" type="button">🗑 Clear all (except Batch No.)</button>
     <button class="sec" id="pull2" type="button">⟳ Pull values from cloud</button>
     <button class="sec" id="prev" type="button">Preview before saving</button>
     <button id="save" type="button">Save to app</button>
@@ -114,7 +114,7 @@ th{background:#eef3f0}
 /* ---------------- settings ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v10';
+const VER='v11';
 const LINES=[
   {ln:1,name:'Line 1 - Savannah',count:8,gm:110},
   {ln:2,name:'Line 2 - Savannah (771)',count:10,gm:110},
@@ -315,11 +315,27 @@ $('#pull2').addEventListener('click',async()=>{
 });
 
 let forced=false;
+/* the values that were cleared: they are removed from the cloud on the next save */
+let pendKill=[];
+/* the native confirm() is not used here: on some phones it is blocked or closed
+   by mistake and the button looks like it does nothing.
+   The screen is cleared at once, the cloud is only touched by "Save to app". */
 $('#clear').addEventListener('click',()=>{
-  if(!confirm('Clear all weights and analyses from the screen?\n(the Batch No. values will stay)'))return;
+  const sh=$('#sh').value,bt=$('#bt').value;
+  /* everything on the screen except the Batch No. */
   $$('.w').forEach(x=>{x.value='';x.classList.remove('fixed','bad')});
   $$('.moi,.faq,.ffa').forEach(x=>x.value='');
-  calc();say('Weights and analyses cleared - start a new entry','ok');beep('ok');
+  $$('.avgv').forEach(x=>x.value='');
+  /* remember what has to be removed from the cloud on the next save */
+  pendKill=[];
+  LINES.forEach(L=>{
+    const n=lineCount(L.ln);
+    for(let i=0;i<n;i++){const id=wId(L.ln,sh,bt,i);pendKill.push({id:id,bk:bucket(id)});}
+    ['moi','faq','ffa'].forEach(k=>{const id=k+sh+'l'+L.ln;pendKill.push({id:id,bk:bucket(id)});});
+  });
+  calc();
+  say('Everything cleared except the Batch No. - press "Save to app" to remove it from the app too (or "Pull values from cloud" to bring it back)','ok');
+  beep('ok');
 });
 $('#prev').addEventListener('click',async()=>{
   const b=$('#save');b.disabled=true;
@@ -340,7 +356,10 @@ $('#prev').addEventListener('click',async()=>{
 $('#save').addEventListener('click',async()=>{
   ac();
   const miss=calc();
-  if(miss.length&&!forced){
+  /* when everything was cleared on purpose there is nothing to fill:
+     the cleared values are the ones that get removed from the cloud */
+  const emptyAll=!$$('.w').some(x=>x.value.trim()!=='');
+  if(miss.length&&!forced&&!(pendKill.length&&emptyAll)){
     forced=true;$('#save').className='warnb';$('#save').textContent='Save anyway';
     say('⚠️ '+miss.join(' — ')+' - press again to save anyway','wn');return;
   }
@@ -350,7 +369,7 @@ $('#save').addEventListener('click',async()=>{
     $$('.w').forEach(x=>{const v=x.value.trim();if(v&&/^-?\d+(\.\d+)?$/.test(v)){const f=fixW(v);if(f!==v)x.value=f;}});
     calc();
     const plain=await load();const list=rows();
-    if(!list.length)throw new Error('No values entered');
+    if(!list.length&&!pendKill.length)throw new Error('No values entered');
     const now=Date.now();
     for(const x of list){
       const bk=bucket(x.id);
@@ -358,11 +377,18 @@ $('#save').addEventListener('click',async()=>{
       bb.v[x.id]=x.val;
       plain.ts=plain.ts||{};plain.ts[bk]=now;
     }
+    /* the cleared values are removed from the cloud - the Batch No. stays */
+    let killed=0;
+    pendKill.forEach(k=>{
+      const bb=plain.b&&plain.b[k.bk];
+      if(bb&&bb.v&&Object.prototype.hasOwnProperty.call(bb.v,k.id)){delete bb.v[k.id];killed++;}
+    });
     await put(plain);
     const check=await load();
     let bad=0;for(const x of list){const bk=bucket(x.id);if(!check.b[bk].v||check.b[bk].v[x.id]!==x.val)bad++;}
     if(bad)throw new Error('Some values were not written ('+bad+')');
-    say('Saved '+list.length+' values - open the app or wait 45 seconds','ok');beep('ok');
+    pendKill=[];
+    say((list.length?('Saved '+list.length+' values'):'Cleared')+(killed?(' - removed '+killed+' cleared values'):'')+' - open the app or wait 45 seconds','ok');beep('ok');
     $('#pvCard').style.display='none';
     await loadValues();
     forced=false;$('#save').className='';$('#save').textContent='Save to app';
