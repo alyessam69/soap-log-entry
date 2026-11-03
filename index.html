@@ -96,6 +96,7 @@ th{background:#eef3f0}
       <input type="checkbox" id="snd" style="width:auto;flex:0 0 auto">
       <span style="margin:0">🔔 صوت عند الحفظ</span>
     </label>
+    <button class="sec" id="clear" type="button">🗑 مسح كل الأوزان والتحاليل</button>
     <button class="sec" id="pull2" type="button">⟳ سحب القيم من الـ cloud</button>
     <button class="sec" id="prev" type="button">معاينة قبل الحفظ</button>
     <button id="save" type="button">حفظ في التطبيق</button>
@@ -113,7 +114,7 @@ th{background:#eef3f0}
 /* ---------------- إعدادات ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v8';
+const VER='v9';
 const LINES=[
   {ln:1,name:'Savannah',count:8},
   {ln:2,name:'Savannah (771)',count:10},
@@ -171,8 +172,8 @@ function build(){
     const n=lineCount(L.ln),ro=L.ln===2;      /* الخط التاني: الـ batch no بتاعه مش بيتغير من هنا */
     return '<div class="card" data-ln="'+L.ln+'">'
       +'<div class="lnhead"><b>الخط '+L.ln+'</b><span class="t">'+lineName(L.ln)+'</span><span class="n">'+n+' قالب</span></div>'
-      +'<label>Batch No.'+(ro?' (من الشيت الأصلي)':'')+'</label>'
-      +'<input class="bn" data-ln="'+L.ln+'" type="text" inputmode="numeric" placeholder="3100241611"'+(ro?' readonly':'')+'>'
+      +'<label>Batch No.'+(ro?' (من الشيت الأصلي — تقدر تغيّره)':'')+'</label>'
+      +'<input class="bn" data-ln="'+L.ln+'" type="text" inputmode="numeric" placeholder="3100241611">'+
       +'<label>التحاليل</label>'
       +'<div class="qc">'
       +'<input class="moi" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="Moisture">'
@@ -190,6 +191,12 @@ function build(){
     b.addEventListener('input',calc);
   });
   $$('.moi,.faq,.ffa,.bn').forEach(i=>i.addEventListener('input',calc));
+  /* لمسة واحدة على الخانة = النص كله يتحدد، فتكتب فوقه على طول من غير ما تمسح يدوي */
+  $$('.w,.moi,.faq,.ffa,.bn').forEach(function(i){
+   const sel=function(){try{if(this.value)this.select();}catch(e){}};
+   i.addEventListener('focus',sel);
+   i.addEventListener('click',function(){const el=this;setTimeout(function(){try{if(el.value)el.select();}catch(e){}},0)});
+  });
   calc();
 }
 const weightsOf=ln=>$$('.w[data-ln="'+ln+'"]').map(b=>b.value.trim());
@@ -247,11 +254,9 @@ function rows(){
     if(moi!=='')out.push({id:'moi'+sh+'l'+L.ln,val:moi,ln:L.ln});
     if(faq!=='')out.push({id:'faq'+sh+'l'+L.ln,val:faq,ln:L.ln});
     if(ffa!=='')out.push({id:'ffa'+sh+'l'+L.ln,val:ffa,ln:L.ln});
-    /* الـ Batch No.: الخط 1 و 3 بس، اختياري — لو فاضي ما فيكتبش حاجة (اللي في الشيت الأصلي يفضل زي ما هو) */
-    if(L.ln!==2){
-      const bn=$$('.bn[data-ln="'+L.ln+'"]')[0].value.trim();
-      if(bn!=='')out.push({id:bnId(L.ln,sh,bt),val:bn,ln:L.ln});
-    }
+    /* الـ Batch No.: اختياري لكل خط — لو فاضي ما فيكتبش حاجة (اللي في الشيت الأصلي يفضل زي ما هو) */
+    const bn=$$('.bn[data-ln="'+L.ln+'"]')[0].value.trim();
+    if(bn!=='')out.push({id:bnId(L.ln,sh,bt),val:bn,ln:L.ln});
   });
   return out;
 }
@@ -308,6 +313,12 @@ $('#pull2').addEventListener('click',async()=>{
 });
 
 let forced=false;
+$('#clear').addEventListener('click',()=>{
+  if(!confirm('تمسح كل الأوزان والتحاليل من الشاشة؟\n(أرقام الـ Batch No. هتفضل زي ما هي)'))return;
+  $$('.w').forEach(x=>{x.value='';x.classList.remove('fixed','bad')});
+  $$('.moi,.faq,.ffa').forEach(x=>x.value='');
+  calc();say('تم مسح الأوزان والتحاليل — ابدأ تسجيل جديد','ok');beep('ok');
+});
 $('#prev').addEventListener('click',async()=>{
   const b=$('#save');b.disabled=true;
   try{
