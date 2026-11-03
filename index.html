@@ -31,12 +31,26 @@ input:disabled,input[readonly]{background:#eef3f0;color:var(--mut)}
 .sel>div{flex:1 1 0;min-width:0}
 .qc{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .qc input{padding:9px 3px;font-size:15px;text-align:center}
-.wlist{display:grid;gap:5px;margin-top:5px;direction:ltr;padding:2px 1px 2px}
-.wcell{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0}
-.wcell>span{text-align:center;font-size:11px;font-weight:700;color:var(--mut);background:#eef3f0;border-radius:6px;padding:3px 0;line-height:1.2}
-.wcell input{padding:10px 2px;font-size:16px;text-align:center;width:100%;min-width:0;letter-spacing:-.4px}
+.lines3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;align-items:start}
+.lines3 .card{padding:8px 7px;margin:0;border-radius:11px}
+.lines3 .lnhead{display:block;padding-bottom:6px;margin-bottom:7px}
+.lines3 .lnhead b{display:block;font-size:13.5px}
+.lines3 .lnhead .t{display:block;font-size:10.5px;line-height:1.3;margin:1px 0 3px}
+.lines3 .lnhead .n{font-size:10px;padding:1px 7px}
+.lines3 label{font-size:10.5px;margin:6px 0 3px}
+.lines3 input{padding:8px 3px;font-size:15px}
+.lines3 .qc{grid-template-columns:1fr;gap:4px}
+.lines3 .qc input{padding:8px 3px;font-size:14px;text-align:center}
+.lines3 .avg{display:block;margin-top:7px}
+.lines3 .avg label{font-size:10.5px;margin:0 0 3px;display:block}
+.lines3 .avg input{padding:8px 3px;font-size:14px;width:100%;text-align:center}
+.wlist{display:flex;flex-direction:column;gap:4px;margin-top:3px;direction:ltr}
+.wcell{display:flex;align-items:center;gap:5px;min-width:0}
+.wcell>span{flex:0 0 22px;text-align:center;font-size:10.5px;font-weight:700;color:var(--mut);background:#eef3f0;border-radius:6px;padding:6px 0;line-height:1.2}
+.wcell input{padding:8px 2px;font-size:15px;text-align:center;width:100%;min-width:0;letter-spacing:-.4px}
 .wcell input.bad{border-color:var(--warn);background:#fdeaea}
 .wcell input.fixed{border-color:var(--acc2);background:#e9f7f0}
+.lines3 .msg{font-size:11px;padding:6px 7px}
 .wlist::-webkit-scrollbar{height:5px}
 .wlist::-webkit-scrollbar-thumb{background:#c9d6d0;border-radius:5px}
 .avg{display:flex;align-items:center;gap:8px;margin-top:9px}
@@ -99,7 +113,7 @@ th{background:#eef3f0}
 /* ---------------- إعدادات ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v7';
+const VER='v8';
 const LINES=[
   {ln:1,name:'Savannah',count:8},
   {ln:2,name:'Savannah (771)',count:10},
@@ -153,12 +167,12 @@ const bnId=(ln,sh,bt)=>'l'+ln+'s'+sh+'b'+bt+'_bn';
 
 function build(){
   const sh=$('#sh').value,bt=$('#bt').value;
-  $('#lines').innerHTML=LINES.map(L=>{
+  $('#lines').innerHTML='<div class="lines3">'+LINES.map(L=>{
     const n=lineCount(L.ln),ro=L.ln===2;      /* الخط التاني: الـ batch no بتاعه مش بيتغير من هنا */
     return '<div class="card" data-ln="'+L.ln+'">'
       +'<div class="lnhead"><b>الخط '+L.ln+'</b><span class="t">'+lineName(L.ln)+'</span><span class="n">'+n+' قالب</span></div>'
-      +'<label>Batch No.'+(ro?' — للشيت الأصلي (مش بيتغير من هنا)':'')+'</label>'
-      +'<input class="bn" data-ln="'+L.ln+'" type="text" inputmode="numeric" placeholder="مثال: 3100241611"'+(ro?' readonly':'')+'>'
+      +'<label>Batch No.'+(ro?' (من الشيت الأصلي)':'')+'</label>'
+      +'<input class="bn" data-ln="'+L.ln+'" type="text" inputmode="numeric" placeholder="3100241611"'+(ro?' readonly':'')+'>'
       +'<label>التحاليل</label>'
       +'<div class="qc">'
       +'<input class="moi" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="Moisture">'
@@ -166,11 +180,11 @@ function build(){
       +'<input class="ffa" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="FFA">'
       +'</div>'
       +'<label>الأوزان</label>'
-      +'<div class="wlist" style="grid-template-columns:repeat('+(n<=6?n:Math.ceil(n/2))+',minmax(0,1fr))">'+[...Array(n)].map((_,i)=>'<div class="wcell"><span>'+(i+1)+'</span><input class="w" data-ln="'+L.ln+'" data-i="'+i+'" type="text" inputmode="decimal" placeholder="—"></div>').join('')+'</div>'
+      +'<div class="wlist">'+[...Array(n)].map((_,i)=>'<div class="wcell"><span>'+(i+1)+'</span><input class="w" data-ln="'+L.ln+'" data-i="'+i+'" type="text" inputmode="decimal" placeholder="—"></div>').join('')+'</div>'
       +'<div class="avg"><label>المتوسط (Avgr)</label><input class="avgv" data-ln="'+L.ln+'" readonly></div>'
       +'<div class="msg wn wl" data-ln="'+L.ln+'"></div>'
       +'</div>';
-  }).join('');
+  }).join('')+'</div>';
   $$('.w').forEach(b=>{
     b.addEventListener('blur',()=>{const v=b.value.trim();if(v&&/^-?\d+(\.\d+)?$/.test(v)){const f=fixW(v);if(f!==v){b.value=f;b.classList.add('fixed');calc();}}});
     b.addEventListener('input',calc);
