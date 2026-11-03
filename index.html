@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>تسجيل أوزان - صابون</title>
+<title>Soap Bar Daily Log - Weights Entry</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b3d2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -74,18 +74,18 @@ th{background:#eef3f0}
 <body>
 <div class="wrap">
   <div class="bar">
-    <h1>تسجيل أوزان — صابون</h1>
+    <h1>Soap Bar Daily Log — Weights Entry</h1>
     <span id="ver" class="ver"></span>
-    <button id="upd" class="mini" type="button" hidden>⟳ تحديث</button>
+    <button id="upd" class="mini" type="button" hidden>⟳ Update</button>
   </div>
 
   <div class="card">
     <div class="sel">
-      <div><label>الشِفت</label><select id="sh"><option value="1">A — 08:30</option><option value="2">B — 17:30</option><option value="3">C — 00:30</option></select></div>
-      <div><label>الدفعة</label><select id="bt"><option value="1">1 (ساعات 1-3)</option><option value="2">2 (ساعات 4-6)</option><option value="3">3 (ساعات 7-8)</option></select></div>
-      <div><label>الخط 3</label><select id="vr"><option value="R">Royal</option><option value="L">Lemon</option></select></div>
+      <div><label>Shift</label><select id="sh"><option value="1">A — 08:30</option><option value="2">B — 17:30</option><option value="3">C — 00:30</option></select></div>
+      <div><label>Batch</label><select id="bt"><option value="1">1 (hours 1-3)</option><option value="2">2 (hours 4-6)</option><option value="3">3 (hours 7-8)</option></select></div>
+      <div><label>Line 3</label><select id="vr"><option value="R">Royal</option><option value="L">Lemon</option></select></div>
     </div>
-    <div class="note">الوزن بخانة عشرية واحدة بيتحوّل بخانتين (110.2 → 110.21) — في الحفظ أو لما تسيب الخانة.</div>
+    <div class="note">One decimal becomes two (110.2 → 110.21) — on save or when you leave the box.</div>
   </div>
 
   <div id="lines"></div>
@@ -94,51 +94,51 @@ th{background:#eef3f0}
     <div class="msg" id="allwarn"></div>
     <label style="display:flex;align-items:center;gap:8px;margin:10px 0 4px">
       <input type="checkbox" id="snd" style="width:auto;flex:0 0 auto">
-      <span style="margin:0">🔔 صوت عند الحفظ</span>
+      <span style="margin:0">🔔 Sound on save</span>
     </label>
-    <button class="sec" id="clear" type="button">🗑 مسح كل الأوزان والتحاليل</button>
-    <button class="sec" id="pull2" type="button">⟳ سحب القيم من الـ cloud</button>
-    <button class="sec" id="prev" type="button">معاينة قبل الحفظ</button>
-    <button id="save" type="button">حفظ في التطبيق</button>
+    <button class="sec" id="clear" type="button">🗑 Clear all weights &amp; analyses</button>
+    <button class="sec" id="pull2" type="button">⟳ Pull values from cloud</button>
+    <button class="sec" id="prev" type="button">Preview before saving</button>
+    <button id="save" type="button">Save to app</button>
     <div class="msg" id="msg"></div>
   </div>
 
   <div class="card" id="pvCard" style="display:none">
-    <label>المعاينة (قبل → بعد)</label>
+    <label>Preview (before → after)</label>
     <div id="pv"></div>
   </div>
 </div>
-<div class="foot">الداتا مشفّرة AES-GCM · PIN 2780</div>
+<div class="foot">Data encrypted AES-GCM · PIN 2780</div>
 <script>
 'use strict';
-/* ---------------- إعدادات ---------------- */
+/* ---------------- settings ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v9';
+const VER='v10';
 const LINES=[
-  {ln:1,name:'Savannah',count:8},
-  {ln:2,name:'Savannah (771)',count:10},
-  {ln:3,name:'Line 3',count:0}          /* الخط 3: Royal=6 ، Lemon=5 */
+  {ln:1,name:'Line 1 - Savannah',count:8,gm:110},
+  {ln:2,name:'Line 2 - Savannah (771)',count:10,gm:110},
+  {ln:3,name:'Line 3',count:0,gm:110}          /* Line 3: Royal = 6, Lemon = 5 */
 ];
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
-/* تحويل لـ base64 على دفعات: التحويل المباشر بيقع لما الداتا تكبر
-   (134KB بتعمل RangeError: Maximum call stack size exceeded) */
+/* base64 in chunks: one call fails when the data grows
+   (134KB used to throw RangeError: Maximum call stack size exceeded) */
 const b64=b=>{const u=new Uint8Array(b);let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)};
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
-/* الوزن: خانة عشرية واحدة -> خانتين (+0.01) */
+/* the weight: one decimal place becomes two (+0.01) */
 const fixW=v=>{v=String(v==null?'':v).trim();if(/^-?\d+\.\d$/.test(v))return v+'1';if(/^-?\d+$/.test(v))return v+'.01';return v;};
 
-/* ---------------- التشفير والسحابة ---------------- */
+/* ---------------- encryption and cloud ---------------- */
 async function key(salt){
   const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(PIN),'PBKDF2',false,['deriveKey']);
   return crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(salt),iterations:120000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
 }
 async function load(){
   const r=await fetch(CLOUD,{cache:'no-store'});
-  if(!r.ok)throw new Error('تعذر قراءة الملف ('+r.status+')');
+  if(!r.ok)throw new Error('Could not read the file ('+r.status+')');
   const b=await r.json();
-  if(!b||b.enc!=='aesgcm')throw new Error('الملف مش مشفّر');
+  if(!b||b.enc!=='aesgcm')throw new Error('The file is not encrypted');
   const k=await key(b.salt);
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(b.iv)},k,unb64(b.ct));
   return JSON.parse(new TextDecoder().decode(pt));
@@ -150,13 +150,13 @@ async function put(plain){
   const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(JSON.stringify(plain)));
   const out={v:2,sv:2,enc:'aesgcm',salt:salt,iv:b64(iv),ct:b64(new Uint8Array(ct))};
   const r=await fetch(CLOUD,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(out)});
-  if(!r.ok)throw new Error('الكتابة رفضت ('+r.status+')');
+  if(!r.ok)throw new Error('The write was refused ('+r.status+')');
 }
 
-/* ---------------- الأقسام ---------------- */
+/* ---------------- the lines ---------------- */
 const lineCount=ln=>ln===3?($('#vr').value==='L'?5:6):LINES.find(l=>l.ln===ln).count;
-const lineName=ln=>ln===3?($('#vr').value==='L'?'Lemon Blossom & Orange':'Royal (90-10)'):LINES.find(l=>l.ln===ln).name;
-/* bucket: الخط 1 و 2 مشترك، الخط 3 حسب المنتج */
+const lineName=ln=>ln===3?($('#vr').value==='L'?'Line 3 - Savannah Lemon Blossom&Orange':'Line 3 - Royal (90-10)'):LINES.find(l=>l.ln===ln).name;
+/* bucket: lines 1 and 2 share one, line 3 follows the product */
 const bucket=id=>{
   const v=/l3/.test(id)?$('#vr').value:'';
   let m=id.match(/s(\d)b\d/);if(m)return 'S'+m[1]+v;
@@ -169,20 +169,20 @@ const bnId=(ln,sh,bt)=>'l'+ln+'s'+sh+'b'+bt+'_bn';
 function build(){
   const sh=$('#sh').value,bt=$('#bt').value;
   $('#lines').innerHTML='<div class="lines3">'+LINES.map(L=>{
-    const n=lineCount(L.ln),ro=L.ln===2;      /* الخط التاني: الـ batch no بتاعه مش بيتغير من هنا */
+    const n=lineCount(L.ln),ro=L.ln===2;      /* line 2 keeps the number from the original sheet */
     return '<div class="card" data-ln="'+L.ln+'">'
-      +'<div class="lnhead"><b>الخط '+L.ln+'</b><span class="t">'+lineName(L.ln)+'</span><span class="n">'+n+' قالب</span></div>'
-      +'<label>Batch No.'+(ro?' (من الشيت الأصلي — تقدر تغيّره)':'')+'</label>'
-      +'<input class="bn" data-ln="'+L.ln+'" type="text" inputmode="numeric" placeholder="3100241611">'+
-      +'<label>التحاليل</label>'
+      +'<div class="lnhead"><b>Line '+L.ln+'</b><span class="t">'+lineName(L.ln)+'</span><span class="n">'+n+' soaps</span></div>'
+      +'<label>Batch No.'+(ro?' (from the original sheet - you can change it)':'')+'</label>'
+      +'<input class="bn" data-ln="'+L.ln+'" type="text" inputmode="numeric" placeholder="3100241611">'
+      +'<label>Moisture / FA / FFA</label>'
       +'<div class="qc">'
       +'<input class="moi" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="Moisture">'
       +'<input class="faq" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="FA">'
       +'<input class="ffa" data-ln="'+L.ln+'" type="text" inputmode="decimal" placeholder="FFA">'
       +'</div>'
-      +'<label>الأوزان</label>'
+      +'<label>NET Weight '+L.gm+' GM</label>'
       +'<div class="wlist">'+[...Array(n)].map((_,i)=>'<div class="wcell"><span>'+(i+1)+'</span><input class="w" data-ln="'+L.ln+'" data-i="'+i+'" type="text" inputmode="decimal" placeholder="—"></div>').join('')+'</div>'
-      +'<div class="avg"><label>المتوسط (Avgr)</label><input class="avgv" data-ln="'+L.ln+'" readonly></div>'
+      +'<div class="avg"><label>Avgr</label><input class="avgv" data-ln="'+L.ln+'" readonly></div>'
       +'<div class="msg wn wl" data-ln="'+L.ln+'"></div>'
       +'</div>';
   }).join('')+'</div>';
@@ -191,7 +191,7 @@ function build(){
     b.addEventListener('input',calc);
   });
   $$('.moi,.faq,.ffa,.bn').forEach(i=>i.addEventListener('input',calc));
-  /* لمسة واحدة على الخانة = النص كله يتحدد، فتكتب فوقه على طول من غير ما تمسح يدوي */
+  /* one tap on a box selects everything, so you type over it directly */
   $$('.w,.moi,.faq,.ffa,.bn').forEach(function(i){
    const sel=function(){try{if(this.value)this.select();}catch(e){}};
    i.addEventListener('focus',sel);
@@ -211,18 +211,18 @@ function calc(){
     $$('.w[data-ln="'+L.ln+'"]').forEach((b,i)=>b.classList.toggle('bad',ws[i]===''));
     const w=$$('.wl[data-ln="'+L.ln+'"]')[0];
     if(w){
-      if(miss.length){w.className='msg wn wl';w.textContent='⚠️ ناقص وزن لـ '+miss.length+' قالب (رقم '+miss.join('، ')+')';}
+      if(miss.length){w.className='msg wn wl';w.textContent='⚠️ Missing weight for '+miss.length+' soaps (no. '+miss.join(', ')+')';}
       else{w.className='msg wl';w.textContent='';}
     }
-    if(miss.length)all.push('الخط '+L.ln+' ناقصه '+miss.length+' وزن (رقم '+miss.join('، ')+')');
+    if(miss.length)all.push('Line '+L.ln+' is missing '+miss.length+' weights (no. '+miss.join(', ')+')');
   });
   const aw=$('#allwarn');
-  if(all.length){aw.className='msg wn';aw.textContent='⚠️ '+all.join(' — ')+' — لازم تكتبهم كلهم قبل الحفظ';}
+  if(all.length){aw.className='msg wn';aw.textContent='⚠️ '+all.join(' — ')+' — fill them all before saving';}
   else{aw.className='msg';aw.textContent='';}
   return all;
 }
 
-/* ---------------- قراءة القيم المحفوظة ---------------- */
+/* ---------------- read the saved values ---------------- */
 async function loadValues(){
   const sh=$('#sh').value,bt=$('#bt').value;
   try{
@@ -234,16 +234,17 @@ async function loadValues(){
         const el=$$('.w[data-ln="'+L.ln+'"][data-i="'+i+'"]')[0];
         if(el){el.value=v[wId(L.ln,sh,bt,i)]||'';el.classList.remove('fixed');}
       });
-      const moi=$$('.moi[data-ln="'+L.ln+'"]')[0];if(moi)moi.value=v['moi'+sh+'l'+L.ln]||'';
-      const faq=$$('.faq[data-ln="'+L.ln+'"]')[0];if(faq)faq.value=v['faq'+sh+'l'+L.ln]||'';
-      const ffa=$$('.ffa[data-ln="'+L.ln+'"]')[0];if(ffa)ffa.value=v['ffa'+sh+'l'+L.ln]||'';
+      const num=v=>{const s=String(v==null?'':v).trim();return (s!==''&&isFinite(+s))?s:'';};
+      const moi=$$('.moi[data-ln="'+L.ln+'"]')[0];if(moi)moi.value=num(v['moi'+sh+'l'+L.ln]);
+      const faq=$$('.faq[data-ln="'+L.ln+'"]')[0];if(faq)faq.value=num(v['faq'+sh+'l'+L.ln]);
+      const ffa=$$('.ffa[data-ln="'+L.ln+'"]')[0];if(ffa)ffa.value=num(v['ffa'+sh+'l'+L.ln]);
       const bn=$$('.bn[data-ln="'+L.ln+'"]')[0];if(bn)bn.value=v[bnId(L.ln,sh,bt)]||'';
     });
     calc();
   }catch(e){}
 }
 
-/* ---------------- تجهيز اللي هيتكتب ---------------- */
+/* ---------------- build what will be written ---------------- */
 function rows(){
   const sh=$('#sh').value,bt=$('#bt').value,out=[];
   LINES.forEach(L=>{
@@ -254,14 +255,15 @@ function rows(){
     if(moi!=='')out.push({id:'moi'+sh+'l'+L.ln,val:moi,ln:L.ln});
     if(faq!=='')out.push({id:'faq'+sh+'l'+L.ln,val:faq,ln:L.ln});
     if(ffa!=='')out.push({id:'ffa'+sh+'l'+L.ln,val:ffa,ln:L.ln});
-    /* الـ Batch No.: اختياري لكل خط — لو فاضي ما فيكتبش حاجة (اللي في الشيت الأصلي يفضل زي ما هو) */
+    /* Batch No.: optional for every line - if empty nothing is written
+       and the original sheet keeps its own number */
     const bn=$$('.bn[data-ln="'+L.ln+'"]')[0].value.trim();
     if(bn!=='')out.push({id:bnId(L.ln,sh,bt),val:bn,ln:L.ln});
   });
   return out;
 }
 
-/* ---------------- الصوت والرسائل ---------------- */
+/* ---------------- sound and messages ---------------- */
 let AC=null;
 function ac(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}catch(e){return null}}
 function beep(kind){
@@ -282,11 +284,11 @@ function beep(kind){
 }
 function say(txt,cls){const m=$('#msg');m.className='msg '+cls;m.textContent=txt;if(cls==='ok')setTimeout(()=>{m.className='msg'},6000);}
 
-/* ---------------- التحديث التلقائي ---------------- */
+/* ---------------- auto update ---------------- */
 function initSW(){
   if(!('serviceWorker' in navigator))return;
   let reg=null,refreshing=false;
-  const mark=()=>{const u=$('#upd');u.hidden=false;u.classList.add('hot');u.textContent='⟳ تحديث متاح';};
+  const mark=()=>{const u=$('#upd');u.hidden=false;u.classList.add('hot');u.textContent='⟳ Update available';};
   navigator.serviceWorker.register('sw.js').then(r=>{reg=r;
     if(r.waiting&&navigator.serviceWorker.controller)mark();
     r.addEventListener('updatefound',()=>{const nw=r.installing;if(nw)nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller)mark();});});
@@ -300,37 +302,37 @@ function initSW(){
   });
 }
 
-/* ---------------- الأحداث ---------------- */
+/* ---------------- events ---------------- */
 ['sh','bt','vr'].forEach(id=>$('#'+id).addEventListener('change',()=>{build();loadValues();}));
 $('#snd').checked=localStorage.getItem('qe_sound')!=='0';
 $('#snd').addEventListener('change',()=>{localStorage.setItem('qe_sound',$('#snd').checked?'1':'0');if($('#snd').checked)beep('ok');});
 
 $('#pull2').addEventListener('click',async()=>{
-  const b=$('#pull2');b.disabled=true;b.textContent='جاري السحب...';
-  try{await loadValues();say('تم سحب القيم المحفوظة','ok');beep('ok');}
-  catch(e){say('فشل السحب: '+e.message,'no');beep('no');}
-  b.disabled=false;b.textContent='⟳ سحب القيم من الـ cloud';
+  const b=$('#pull2');b.disabled=true;b.textContent='Pulling...';
+  try{await loadValues();say('Saved values pulled','ok');beep('ok');}
+  catch(e){say('Pull failed: '+e.message,'no');beep('no');}
+  b.disabled=false;b.textContent='⟳ Pull values from cloud';
 });
 
 let forced=false;
 $('#clear').addEventListener('click',()=>{
-  if(!confirm('تمسح كل الأوزان والتحاليل من الشاشة؟\n(أرقام الـ Batch No. هتفضل زي ما هي)'))return;
+  if(!confirm('Clear all weights and analyses from the screen?\n(the Batch No. values will stay)'))return;
   $$('.w').forEach(x=>{x.value='';x.classList.remove('fixed','bad')});
   $$('.moi,.faq,.ffa').forEach(x=>x.value='');
-  calc();say('تم مسح الأوزان والتحاليل — ابدأ تسجيل جديد','ok');beep('ok');
+  calc();say('Weights and analyses cleared - start a new entry','ok');beep('ok');
 });
 $('#prev').addEventListener('click',async()=>{
   const b=$('#save');b.disabled=true;
   try{
     const miss=calc();
-    if(miss.length){say(miss.join(' — ')+' — كمّل الأول','wn');b.disabled=false;return;}
+    if(miss.length){say(miss.join(' — ')+' - fill the missing ones first','wn');b.disabled=false;return;}
     const plain=await load();const list=rows();
-    if(!list.length)throw new Error('مفيش قيم مكتوبة');
+    if(!list.length)throw new Error('No values entered');
     const pv=list.map(x=>{const bk=bucket(x.id);const old=(plain.b[bk]&&plain.b[bk].v&&plain.b[bk].v[x.id])||'-';return{ln:x.ln,id:x.id,old:old,val:x.val};});
     $('#pvCard').style.display='';
-    $('#pv').innerHTML='<table><tr><th>الخط</th><th>الخانة</th><th>قبل</th><th>بعد</th></tr>'
+    $('#pv').innerHTML='<table><tr><th>Line</th><th>Field</th><th>Before</th><th>After</th></tr>'
       +pv.map(r=>'<tr><td>'+r.ln+'</td><td>'+r.id+'</td><td>'+r.old+'</td><td><b>'+r.val+'</b></td></tr>').join('')+'</table>';
-    say('المعاينة جاهزة ('+pv.length+' قيمة) - اضغط حفظ','ok');
+    say('Preview ready ('+pv.length+' values) - press save','ok');
   }catch(e){say(e.message,'no');}
   b.disabled=false;
 });
@@ -339,16 +341,16 @@ $('#save').addEventListener('click',async()=>{
   ac();
   const miss=calc();
   if(miss.length&&!forced){
-    forced=true;$('#save').className='warnb';$('#save').textContent='احفظ رغم النقص';
-    say('⚠️ '+miss.join(' — ')+' — لو مفعتش تضغط تاني عشان تحفظ','wn');return;
+    forced=true;$('#save').className='warnb';$('#save').textContent='Save anyway';
+    say('⚠️ '+miss.join(' — ')+' - press again to save anyway','wn');return;
   }
-  const b=$('#save');b.disabled=true;b.textContent='جاري الحفظ...';
+  const b=$('#save');b.disabled=true;b.textContent='Saving...';
   try{
-    /* خانة عشرية واحدة -> خانتين (حتى لو ما سيبتش الخانة) */
+    /* one decimal place becomes two (even if the box was not left) */
     $$('.w').forEach(x=>{const v=x.value.trim();if(v&&/^-?\d+(\.\d+)?$/.test(v)){const f=fixW(v);if(f!==v)x.value=f;}});
     calc();
     const plain=await load();const list=rows();
-    if(!list.length)throw new Error('مفيش قيم مكتوبة');
+    if(!list.length)throw new Error('No values entered');
     const now=Date.now();
     for(const x of list){
       const bk=bucket(x.id);
@@ -359,13 +361,13 @@ $('#save').addEventListener('click',async()=>{
     await put(plain);
     const check=await load();
     let bad=0;for(const x of list){const bk=bucket(x.id);if(!check.b[bk].v||check.b[bk].v[x.id]!==x.val)bad++;}
-    if(bad)throw new Error('بعض القيم مااتكتبتش ('+bad+')');
-    say('تم تسجيل '+list.length+' قيمة بنجاح - افتح التطبيق أو استنى 45 ثانية','ok');beep('ok');
+    if(bad)throw new Error('Some values were not written ('+bad+')');
+    say('Saved '+list.length+' values - open the app or wait 45 seconds','ok');beep('ok');
     $('#pvCard').style.display='none';
     await loadValues();
-    forced=false;$('#save').className='';$('#save').textContent='حفظ في التطبيق';
+    forced=false;$('#save').className='';$('#save').textContent='Save to app';
   }catch(e){say(e.message,'no');beep('no');}
-  b.disabled=false;if(b.textContent==='جاري الحفظ...')b.textContent='حفظ في التطبيق';
+  b.disabled=false;if(b.textContent==='Saving...')b.textContent='Save to app';
 });
 
 $('#ver').textContent=VER;
