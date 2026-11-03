@@ -105,7 +105,9 @@ const LINES=[
 ];
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
-const b64=b=>btoa(String.fromCharCode.apply(null,new Uint8Array(b)));
+/* تحويل لـ base64 على دفعات: التحويل المباشر بيقع لما الداتا تكبر
+   (134KB بتعمل RangeError: Maximum call stack size exceeded) */
+const b64=b=>{const u=new Uint8Array(b);let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)};
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 /* الوزن: خانة عشرية واحدة -> خانتين (+0.01) */
 const fixW=v=>{v=String(v==null?'':v).trim();if(/^-?\d+\.\d$/.test(v))return v+'1';if(/^-?\d+$/.test(v))return v+'.01';return v;};
