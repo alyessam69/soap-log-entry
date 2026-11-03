@@ -114,7 +114,7 @@ th{background:#eef3f0}
 /* ---------------- settings ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v11';
+const VER='v12';
 const LINES=[
   {ln:1,name:'Line 1 - Savannah',count:8,gm:110},
   {ln:2,name:'Line 2 - Savannah (771)',count:10,gm:110},
@@ -227,19 +227,23 @@ async function loadValues(){
   const sh=$('#sh').value,bt=$('#bt').value;
   try{
     const plain=await load();
+    const nb={};
     LINES.forEach(L=>{
       const bk=bucket(wId(L.ln,sh,bt,0));
       const v=(plain.b[bk]&&plain.b[bk].v)||{};
       weightsOf(L.ln).forEach((_,i)=>{
+        const id=wId(L.ln,sh,bt,i);
         const el=$$('.w[data-ln="'+L.ln+'"][data-i="'+i+'"]')[0];
-        if(el){el.value=v[wId(L.ln,sh,bt,i)]||'';el.classList.remove('fixed');}
+        if(el){el.value=v[id]||'';el.classList.remove('fixed');}
+        nb[id]=v[id]||'';
       });
       const num=v=>{const s=String(v==null?'':v).trim();return (s!==''&&isFinite(+s))?s:'';};
-      const moi=$$('.moi[data-ln="'+L.ln+'"]')[0];if(moi)moi.value=num(v['moi'+sh+'l'+L.ln]);
-      const faq=$$('.faq[data-ln="'+L.ln+'"]')[0];if(faq)faq.value=num(v['faq'+sh+'l'+L.ln]);
-      const ffa=$$('.ffa[data-ln="'+L.ln+'"]')[0];if(ffa)ffa.value=num(v['ffa'+sh+'l'+L.ln]);
-      const bn=$$('.bn[data-ln="'+L.ln+'"]')[0];if(bn)bn.value=v[bnId(L.ln,sh,bt)]||'';
+      const moi=$$('.moi[data-ln="'+L.ln+'"]')[0];if(moi){moi.value=num(v['moi'+sh+'l'+L.ln]);nb['moi'+sh+'l'+L.ln]=moi.value;}
+      const faq=$$('.faq[data-ln="'+L.ln+'"]')[0];if(faq){faq.value=num(v['faq'+sh+'l'+L.ln]);nb['faq'+sh+'l'+L.ln]=faq.value;}
+      const ffa=$$('.ffa[data-ln="'+L.ln+'"]')[0];if(ffa){ffa.value=num(v['ffa'+sh+'l'+L.ln]);nb['ffa'+sh+'l'+L.ln]=ffa.value;}
+      const bn=$$('.bn[data-ln="'+L.ln+'"]')[0];if(bn){bn.value=v[bnId(L.ln,sh,bt)]||'';nb[bnId(L.ln,sh,bt)]=bn.value;}
     });
+    baseVals=nb;
     calc();
   }catch(e){}
 }
@@ -247,18 +251,17 @@ async function loadValues(){
 /* ---------------- build what will be written ---------------- */
 function rows(){
   const sh=$('#sh').value,bt=$('#bt').value,out=[];
+  /* only the values that are really different from the ones on the cloud:
+     the page never writes an old number over a newer one */
+  const add=(id,val,ln)=>{if(val!==''&&val!==baseVals[id])out.push({id:id,val:val,ln:ln});};
   LINES.forEach(L=>{
-    weightsOf(L.ln).forEach((v,i)=>{if(v!=='')out.push({id:wId(L.ln,sh,bt,i),val:v,ln:L.ln});});
-    const moi=$$('.moi[data-ln="'+L.ln+'"]')[0].value.trim();
-    const faq=$$('.faq[data-ln="'+L.ln+'"]')[0].value.trim();
-    const ffa=$$('.ffa[data-ln="'+L.ln+'"]')[0].value.trim();
-    if(moi!=='')out.push({id:'moi'+sh+'l'+L.ln,val:moi,ln:L.ln});
-    if(faq!=='')out.push({id:'faq'+sh+'l'+L.ln,val:faq,ln:L.ln});
-    if(ffa!=='')out.push({id:'ffa'+sh+'l'+L.ln,val:ffa,ln:L.ln});
+    weightsOf(L.ln).forEach((v,i)=>add(wId(L.ln,sh,bt,i),v,L.ln));
+    add('moi'+sh+'l'+L.ln,$$('.moi[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
+    add('faq'+sh+'l'+L.ln,$$('.faq[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
+    add('ffa'+sh+'l'+L.ln,$$('.ffa[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
     /* Batch No.: optional for every line - if empty nothing is written
        and the original sheet keeps its own number */
-    const bn=$$('.bn[data-ln="'+L.ln+'"]')[0].value.trim();
-    if(bn!=='')out.push({id:bnId(L.ln,sh,bt),val:bn,ln:L.ln});
+    add(bnId(L.ln,sh,bt),$$('.bn[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
   });
   return out;
 }
@@ -315,6 +318,9 @@ $('#pull2').addEventListener('click',async()=>{
 });
 
 let forced=false;
+/* the values that came from the cloud: the save writes only what changed,
+   so the page can never write an old value over a newer one */
+let baseVals={};
 /* the values that were cleared: they are removed from the cloud on the next save */
 let pendKill=[];
 /* the native confirm() is not used here: on some phones it is blocked or closed
@@ -369,7 +375,7 @@ $('#save').addEventListener('click',async()=>{
     $$('.w').forEach(x=>{const v=x.value.trim();if(v&&/^-?\d+(\.\d+)?$/.test(v)){const f=fixW(v);if(f!==v)x.value=f;}});
     calc();
     const plain=await load();const list=rows();
-    if(!list.length&&!pendKill.length)throw new Error('No values entered');
+    if(!list.length&&!pendKill.length)throw new Error('Nothing new to save');
     const now=Date.now();
     for(const x of list){
       const bk=bucket(x.id);
