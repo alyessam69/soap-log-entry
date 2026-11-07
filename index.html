@@ -114,7 +114,7 @@ th{background:#eef3f0}
 /* ---------------- settings ---------------- */
 const CLOUD='https://soap-lab-shift-sync-default-rtdb.europe-west1.firebasedatabase.app/lab/soap-log-7c4e19a83b2f46d0a95e17cb.json';
 const PIN='2780';
-const VER='v12';
+const VER='v13';
 const LINES=[
   {ln:1,name:'Line 1 - Savannah',count:8,gm:110},
   {ln:2,name:'Line 2 - Savannah (771)',count:10,gm:110},
@@ -238,9 +238,14 @@ async function loadValues(){
         nb[id]=v[id]||'';
       });
       const num=v=>{const s=String(v==null?'':v).trim();return (s!==''&&isFinite(+s))?s:'';};
-      const moi=$$('.moi[data-ln="'+L.ln+'"]')[0];if(moi){moi.value=num(v['moi'+sh+'l'+L.ln]);nb['moi'+sh+'l'+L.ln]=moi.value;}
-      const faq=$$('.faq[data-ln="'+L.ln+'"]')[0];if(faq){faq.value=num(v['faq'+sh+'l'+L.ln]);nb['faq'+sh+'l'+L.ln]=faq.value;}
-      const ffa=$$('.ffa[data-ln="'+L.ln+'"]')[0];if(ffa){ffa.value=num(v['ffa'+sh+'l'+L.ln]);nb['ffa'+sh+'l'+L.ln]=ffa.value;}
+      /* the app reads the QC from the batch keys (l{line}s{shift}b{batch}_m/_fa/_ffa);
+         the old line keys stay as a fallback for the values that were written before */
+      const qcIds=[['moi','_m'],['faq','_fa'],['ffa','_ffa']].map(([k,suf])=>[k,'l'+L.ln+'s'+sh+'b'+bt+suf]);
+      qcIds.forEach(([k,bid])=>{
+        const el=$$('.'+k+'[data-ln="'+L.ln+'"]')[0];
+        const val2=(v[bid]!==undefined&&v[bid]!=='')?v[bid]:v[k+sh+'l'+L.ln];
+        if(el){el.value=num(val2);nb[bid]=el.value;nb[k+sh+'l'+L.ln]=el.value;}
+      });
       const bn=$$('.bn[data-ln="'+L.ln+'"]')[0];if(bn){bn.value=v[bnId(L.ln,sh,bt)]||'';nb[bnId(L.ln,sh,bt)]=bn.value;}
     });
     baseVals=nb;
@@ -256,9 +261,14 @@ function rows(){
   const add=(id,val,ln)=>{if(val!==''&&val!==baseVals[id])out.push({id:id,val:val,ln:ln});};
   LINES.forEach(L=>{
     weightsOf(L.ln).forEach((v,i)=>add(wId(L.ln,sh,bt,i),v,L.ln));
-    add('moi'+sh+'l'+L.ln,$$('.moi[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
-    add('faq'+sh+'l'+L.ln,$$('.faq[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
-    add('ffa'+sh+'l'+L.ln,$$('.ffa[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
+    [['moi','_m'],['faq','_fa'],['ffa','_ffa']].forEach(([k,suf])=>{
+      const el=$$('.'+k+'[data-ln="'+L.ln+'"]')[0];if(!el)return;
+      const v2=el.value.trim();
+      add(k+sh+'l'+L.ln,v2,L.ln);
+      /* the batch keys are the ones the app reads - this is what makes the
+         Moisture / FA / FFA typed here really reach the app */
+      add('l'+L.ln+'s'+sh+'b'+bt+suf,v2,L.ln);
+    });
     /* Batch No.: optional for every line - if empty nothing is written
        and the original sheet keeps its own number */
     add(bnId(L.ln,sh,bt),$$('.bn[data-ln="'+L.ln+'"]')[0].value.trim(),L.ln);
@@ -338,6 +348,7 @@ $('#clear').addEventListener('click',()=>{
     const n=lineCount(L.ln);
     for(let i=0;i<n;i++){const id=wId(L.ln,sh,bt,i);pendKill.push({id:id,bk:bucket(id)});}
     ['moi','faq','ffa'].forEach(k=>{const id=k+sh+'l'+L.ln;pendKill.push({id:id,bk:bucket(id)});});
+    ['_m','_fa','_ffa'].forEach(suf=>{const id='l'+L.ln+'s'+sh+'b'+bt+suf;pendKill.push({id:id,bk:bucket(id)});});
   });
   calc();
   say('Everything cleared except the Batch No. - press "Save to app" to remove it from the app too (or "Pull values from cloud" to bring it back)','ok');
